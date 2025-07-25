@@ -9,6 +9,28 @@
 localhost:80 {
     respond /health "OK - Development Mode" 200
     
+    # Kraken API endpoints
+    handle_path /kraken/* {
+        reverse_proxy kraken:3240 {
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+    
+    # Direct access to Kraken service (alternative path)
+    handle_path /api/kraken/* {
+        rewrite * /api{path}
+        reverse_proxy kraken:3240 {
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+    
+    # Default to n8n
     reverse_proxy n8n:5678 {
         flush_interval -1
     }
@@ -18,6 +40,28 @@ localhost:80 {
 n8n.blt.io {
     respond /health "OK - Development Mode" 200
     
+    # Kraken API endpoints
+    handle_path /kraken/* {
+        reverse_proxy kraken:3240 {
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+    
+    # Direct access to Kraken service (alternative path)
+    handle_path /api/kraken/* {
+        rewrite * /api{path}
+        reverse_proxy kraken:3240 {
+            header_up Host {http.request.host}
+            header_up X-Real-IP {http.request.remote}
+            header_up X-Forwarded-For {http.request.remote}
+            header_up X-Forwarded-Proto {http.request.scheme}
+        }
+    }
+    
+    # Default to n8n
     reverse_proxy n8n:5678 {
         flush_interval -1
     }
