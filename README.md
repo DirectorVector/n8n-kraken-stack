@@ -95,14 +95,62 @@ docker-compose -f docker-compose.yml up -d
 
 ### API Endpoints
 
+#### Health & System
 | Endpoint | Method | Description | Auth Required |
 |----------|--------|-------------|---------------|
 | `/health` | GET | Service health check | No |
 | `/api/time` | GET | Kraken server time | No |
+| `/api/system-status` | GET | Kraken system status | No |
+
+#### Market Data (Public)
+| Endpoint | Method | Description | Required Params | Optional Params |
+|----------|--------|-------------|-----------------|-----------------|
+| `/api/assets` | GET | Asset information | None | `asset`, `aclass` |
+| `/api/asset-pairs` | GET | Tradable asset pairs | None | `pair`, `info` |
+| `/api/ticker` | GET | Ticker information | `pair` | None |
+| `/api/ohlc` | GET | OHLC candlestick data | `pair` | `interval`, `since` |
+| `/api/depth` | GET | Order book depth | `pair` | `count` |
+| `/api/trades` | GET | Recent trades | `pair` | `since` |
+| `/api/spread` | GET | Recent spread data | `pair` | `since` |
+
+#### Account Data (Private)
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
 | `/api/balance` | GET | Account balance | Yes |
 
 ### Example API Calls
 
+#### Public Market Data
+```bash
+# System status
+curl http://localhost:3240/api/system-status
+
+# Get all assets
+curl http://localhost:3240/api/assets
+
+# Get specific assets
+curl "http://localhost:3240/api/assets?asset=XBT,ETH"
+
+# Get all tradable pairs
+curl http://localhost:3240/api/asset-pairs
+
+# Get Bitcoin ticker
+curl "http://localhost:3240/api/ticker?pair=XXBTZUSD"
+
+# Get OHLC data (1 hour intervals)
+curl "http://localhost:3240/api/ohlc?pair=XXBTZUSD&interval=60"
+
+# Get order book depth (top 10)
+curl "http://localhost:3240/api/depth?pair=XXBTZUSD&count=10"
+
+# Get recent trades
+curl "http://localhost:3240/api/trades?pair=XXBTZUSD"
+
+# Get spread data
+curl "http://localhost:3240/api/spread?pair=XXBTZUSD"
+```
+
+#### Private Account Data
 ```bash
 # Health check
 curl http://localhost:3240/health
@@ -113,6 +161,14 @@ curl http://localhost:3240/api/time
 # Get account balance (requires API credentials)
 curl http://localhost:3240/api/balance
 ```
+
+#### Parameter Details
+
+**Asset Pairs**: Use Kraken's format (e.g., `XXBTZUSD`, `XETHZUSD`, `ADAUSD`)
+
+**OHLC Intervals**: 1, 5, 15, 30, 60, 240, 1440, 10080, 21600 (minutes)
+
+**Timestamps**: Unix timestamp format for `since` parameters
 
 ## 🏗 Development
 
