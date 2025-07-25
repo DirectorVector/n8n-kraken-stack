@@ -1,0 +1,3 @@
+# n8n Workflows Directory
+# This folder will contain your version-controlled n8n workflows
+# Files will be automatically synced when git integration is enabled in n8n

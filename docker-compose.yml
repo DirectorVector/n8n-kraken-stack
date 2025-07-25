@@ -48,9 +48,12 @@ services:
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
       - NODE_FUNCTION_ALLOW_EXTERNAL=cheerio,moment,axios,crypto,querystring
       - N8N_RUNNERS_ENABLED=true
+      - N8N_VERSION_CONTROL_ENABLED=true
+      - N8N_VERSION_CONTROL_GIT_FOLDER=/home/node/.n8n/workflows
     volumes:
       - n8n_data:/home/node/.n8n
       - ${DATA_FOLDER}/local_files:/files
+      - ./workflows:/home/node/.n8n/workflows  # Git-tracked workflows
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5678/healthz", "||", "exit", "1"]
       interval: 30s

@@ -10,14 +10,37 @@ A comprehensive Docker stack combining n8n workflow automation with Kraken crypt
 - **Docker Compose**: Multi-service orchestration with development tools
 - **Security Best Practices**: Non-root containers, environment variable management
 - **Development Ready**: Hot reloading, logging, and health checks
+- **Workflow Version Control**: Git integration for n8n workflows with automated sync
+
+## 🔄 Workflow Version Control
+
+This stack includes built-in support for version controlling your n8n workflows:
+
+- **Git Integration**: Native n8n git support for automatic workflow syncing
+- **Mounted Workflows**: `./workflows/` directory for git-tracked workflows
+- **Export Scripts**: Automated backup tools for manual workflow exports
+- **API Access**: REST API endpoints for programmatic workflow management
+
+**Quick Start:**
+1. Access n8n at http://localhost:8080
+2. Enable git integration in Settings → Version Control
+3. Configure to sync with `./workflows/` folder
+4. Your workflows are now version controlled with your code!
+
+📖 **Detailed Guide**: See [WORKFLOWS.md](WORKFLOWS.md) for complete setup instructions.
 
 ## 📋 Services Overview
 
 | Service | Port | Description |
 |---------|------|-------------|
-| n8n | 5678 | Workflow automation platform |
-| Caddy | 80/443 | Reverse proxy with automatic HTTPS |
+| n8n | 8080 (dev) | Workflow automation platform |
+| Caddy | 8080/443 | Reverse proxy with automatic HTTPS |
 | Kraken API | 3240 | Cryptocurrency API service |
+
+**Access URLs:**
+- **n8n Interface**: http://localhost:8080
+- **Kraken API**: http://localhost:8080/kraken/*
+- **Test Dashboard**: http://localhost:8080/kraken/test
 
 ## 🛠 Prerequisites
 
@@ -78,9 +101,10 @@ docker-compose -f docker-compose.yml up -d
 
 ### 4. Access Services
 
-- **n8n**: http://localhost:5678
-- **Kraken API Health**: http://localhost:3240/health
-- **Kraken API Docs**: See API section below
+- **n8n**: http://localhost:8080
+- **Kraken API**: http://localhost:8080/kraken/health
+- **Test Dashboard**: http://localhost:8080/kraken/test
+- **API Documentation**: See API section below
 
 ## 🔑 Kraken API Setup
 
