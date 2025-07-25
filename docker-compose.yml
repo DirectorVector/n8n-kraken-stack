@@ -70,8 +70,6 @@ services:
       - .env
       - .env.local  # Override with local secrets (ignored by git)
     environment:
-      - KRAKEN_API_KEY=${KRAKEN_API_KEY}
-      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
       - NODE_ENV=production
     ports:
       - "3240:3240"
