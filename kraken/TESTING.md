@@ -48,7 +48,37 @@ These operations are NOT included in automated testing as they would execute rea
 1. Kraken API service must be running on port 3240
 2. Valid Kraken API credentials configured in environment
 
-### Commands
+### HTTP Test Endpoint (Recommended)
+
+The easiest way to run tests is through the built-in HTTP endpoint:
+
+```bash
+# Quick summary (returns JSON with just the summary stats)
+curl http://localhost:3240/test?format=summary
+
+# Full results (returns complete test data including logs)
+curl http://localhost:3240/test
+
+# HTML dashboard (opens beautiful test results in browser)
+curl http://localhost:3240/test?format=html
+# or visit: http://localhost:3240/test?format=html
+```
+
+**HTTP Endpoint Features**:
+- ✅ **Multiple Output Formats**: JSON, summary, HTML
+- ✅ **Browser Dashboard**: Rich HTML interface with color-coded results
+- ✅ **Real-Time Execution**: Tests run live when endpoint is called
+- ✅ **Integration Ready**: Perfect for monitoring systems
+- ✅ **No External Tools**: Runs within existing service
+- ✅ **Timeout Protection**: Configurable timeout prevents hanging
+
+**Query Parameters**:
+- `format=json` (default): Full test results with logs
+- `format=summary`: Just the summary statistics
+- `format=html`: Beautiful HTML dashboard
+- `timeout=30000`: Timeout in milliseconds (default: 30 seconds)
+
+### Command Line Testing
 
 ```bash
 # Run the full test suite
@@ -180,6 +210,50 @@ The test suite is designed to be CI/CD friendly:
 - JSON output available for automated parsing
 - No interactive prompts or user input required
 - Safe for automated execution in any environment
+
+### HTTP Endpoint Integration
+
+The `/test` HTTP endpoint is perfect for monitoring and automation:
+
+```bash
+# Health check script example
+HEALTH=$(curl -s http://localhost:3240/test?format=summary | jq '.status')
+if [ "$HEALTH" != "\"healthy\"" ]; then
+  echo "API tests failing!"
+  exit 1
+fi
+
+# Monitoring integration
+curl -s http://localhost:3240/test?format=summary | \
+  jq '{status: .status, passed: .passed, failed: .failed, success_rate: .successRate}'
+
+# Get detailed failure information
+curl -s http://localhost:3240/test | \
+  jq '.results[] | select(.status == "FAIL") | {endpoint: .endpoint, error: .error}'
+```
+
+**Response Formats**:
+
+*Summary Format (`?format=summary`)*:
+```json
+{
+  "passed": 18,
+  "failed": 5,
+  "total": 23,
+  "successRate": 78.3,
+  "status": "healthy"
+}
+```
+
+*Full Format (default)*:
+```json
+{
+  "summary": { /* summary data */ },
+  "results": [ /* individual test results */ ],
+  "logs": [ /* detailed execution logs */ ],
+  "timestamp": "2025-07-24T21:49:23.000Z"
+}
+```
 
 ## Security Considerations
 

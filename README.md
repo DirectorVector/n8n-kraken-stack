@@ -318,7 +318,7 @@ The Kraken service uses nodemon for automatic restart on code changes:
 The project includes a comprehensive test suite for validating all API endpoints safely:
 
 ```bash
-# Run the full test suite
+# Run the full test suite via command line
 cd kraken && npm test
 
 # Run tests with auto-restart on changes
@@ -326,7 +326,19 @@ cd kraken && npm run test:watch
 
 # Manual execution
 cd kraken && node test-endpoints.js
+
+# Run tests via HTTP endpoint (recommended)
+curl http://localhost:3240/test?format=summary
+curl http://localhost:3240/test?format=html
+curl http://localhost:3240/test
 ```
+
+**HTTP Test Endpoint Features**:
+- **Multiple Formats**: JSON (default), summary, and HTML formats
+- **Browser-Friendly**: HTML format provides a beautiful test dashboard
+- **Real-Time Results**: Execute tests directly via HTTP requests
+- **Integration Ready**: Perfect for monitoring systems and CI/CD pipelines
+- **No External Dependencies**: Runs within the existing service
 
 **Test Coverage**:
 - ✅ All market data endpoints (safe, read-only)

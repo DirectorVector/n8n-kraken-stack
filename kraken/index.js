@@ -2,6 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const { Kraken } = require('node-kraken-api');
 
+// Try to load test module, but don't fail if it's not available
+let KrakenAPITester;
+try {
+  KrakenAPITester = require('./test-module');
+} catch (error) {
+  console.warn('⚠️ Test module not available:', error.message);
+  KrakenAPITester = null;
+}
+
 // Environment validation
 const requiredEnvVars = ['KRAKEN_API_KEY', 'KRAKEN_API_SECRET'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -38,6 +47,157 @@ console.log('✅ Kraken API client initialized successfully');
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'Kraken API Service' });
 });
+
+// Test endpoint - runs comprehensive API tests
+app.get('/test', async (req, res) => {
+  try {
+    // Check if test module is available
+    if (!KrakenAPITester) {
+      return res.status(503).json({
+        error: 'Test module not available',
+        message: 'The test functionality requires axios dependency to be installed',
+        hint: 'Run "npm install axios" and restart the service to enable testing',
+        availableEndpoints: {
+          health: '/health',
+          serverTime: '/api/time',
+          marketData: [
+            '/api/system-status',
+            '/api/assets',
+            '/api/asset-pairs',
+            '/api/ticker?pair=XXBTZUSD',
+            '/api/ohlc?pair=XXBTZUSD',
+            '/api/depth?pair=XXBTZUSD',
+            '/api/trades?pair=XXBTZUSD',
+            '/api/spread?pair=XXBTZUSD'
+          ]
+        }
+      });
+    }
+
+    const { format = 'json', timeout = '30000' } = req.query;
+    
+    // Set a timeout for the entire test suite
+    const testTimeout = parseInt(timeout);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Test suite timeout')), testTimeout);
+    });
+
+    // Create tester instance with the current server's base URL
+    const baseUrl = `http://localhost:${port}`;
+    const tester = new KrakenAPITester(baseUrl);
+    
+    // Run tests with timeout protection
+    const testPromise = tester.runAllTests();
+    const results = await Promise.race([testPromise, timeoutPromise]);
+
+    // Return results based on format
+    if (format === 'html') {
+      // HTML format for browser viewing
+      const html = generateTestHTML(results);
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } else if (format === 'summary') {
+      // Just the summary for quick checks
+      res.json(results.summary);
+    } else {
+      // Default JSON format with full details
+      res.json(results);
+    }
+  } catch (error) {
+    console.error('Error running test suite:', error);
+    res.status(500).json({ 
+      error: 'Failed to run test suite', 
+      details: error.message,
+      hint: 'Make sure the Kraken API service is running properly'
+    });
+  }
+});
+
+// Helper function to generate HTML test results
+function generateTestHTML(results) {
+  const { summary, results: testResults, logs } = results;
+  const statusColor = summary.status === 'healthy' ? '#28a745' : '#dc3545';
+  
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kraken API Test Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .status { font-size: 24px; font-weight: bold; color: ${statusColor}; }
+        .summary { display: flex; justify-content: space-around; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+        .metric { text-align: center; }
+        .metric-value { font-size: 32px; font-weight: bold; }
+        .metric-label { color: #666; margin-top: 5px; }
+        .passed { color: #28a745; }
+        .failed { color: #dc3545; }
+        .section { margin-bottom: 30px; }
+        .section h3 { border-bottom: 2px solid #dee2e6; padding-bottom: 10px; }
+        .test-item { padding: 10px; margin: 5px 0; border-left: 4px solid #dee2e6; background: #f8f9fa; }
+        .test-pass { border-left-color: #28a745; }
+        .test-fail { border-left-color: #dc3545; }
+        .test-method { font-weight: bold; color: #495057; }
+        .test-endpoint { font-family: monospace; color: #007bff; }
+        .test-description { color: #666; font-style: italic; }
+        .timestamp { color: #999; font-size: 14px; }
+        .logs { background: #000; color: #00ff00; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Kraken API Test Results</h1>
+            <div class="status">${summary.status.toUpperCase().replace('_', ' ')}</div>
+            <div class="timestamp">Generated: ${new Date(results.timestamp).toLocaleString()}</div>
+        </div>
+        
+        <div class="summary">
+            <div class="metric">
+                <div class="metric-value passed">${summary.passed}</div>
+                <div class="metric-label">Passed</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value failed">${summary.failed}</div>
+                <div class="metric-label">Failed</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">${summary.total}</div>
+                <div class="metric-label">Total</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">${summary.successRate}%</div>
+                <div class="metric-label">Success Rate</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>📊 Test Results</h3>
+            ${testResults.map(test => `
+                <div class="test-item ${test.status === 'PASS' ? 'test-pass' : 'test-fail'}">
+                    <span class="test-method">${test.method}</span>
+                    <span class="test-endpoint">${test.endpoint}</span>
+                    <span class="test-description">${test.description}</span>
+                    <div style="margin-top: 5px; font-size: 12px;">
+                        Status: ${test.status} ${test.httpStatus ? `(HTTP ${test.httpStatus})` : ''}
+                        ${test.error ? `<br>Error: ${typeof test.error === 'object' ? JSON.stringify(test.error) : test.error}` : ''}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        <div class="section">
+            <h3>📝 Test Logs</h3>
+            <div class="logs">
+                ${logs.map(log => `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}`).join('\n')}
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+}
 
 // Get server time (public endpoint, no auth required)
 app.get('/api/time', async (req, res) => {
@@ -490,6 +650,7 @@ process.on('SIGINT', () => {
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Kraken API service running on port ${port}`);
   console.log(`📋 Health check: http://localhost:${port}/health`);
+  console.log(`🧪 Test suite: http://localhost:${port}/test${KrakenAPITester ? '' : ' (limited - axios not installed)'}`);
   console.log(`⏰ Server time: http://localhost:${port}/api/time`);
   console.log('');
   console.log('📊 Market Data Endpoints (GET):');
@@ -510,5 +671,14 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`   ❌ Cancel Order: POST http://localhost:${port}/api/cancel-order`);
   console.log(`   🗑️  Cancel All: POST http://localhost:${port}/api/cancel-all`);
   console.log(`   ⏱️  Cancel All After: POST http://localhost:${port}/api/cancel-all-orders-after`);
+  console.log('');
+  if (KrakenAPITester) {
+    console.log('🧪 Test Endpoints:');
+    console.log(`   📊 JSON Results: GET http://localhost:${port}/test`);
+    console.log(`   📋 Summary Only: GET http://localhost:${port}/test?format=summary`);
+    console.log(`   🌐 HTML View: GET http://localhost:${port}/test?format=html`);
+  } else {
+    console.log('⚠️  Test endpoint available but limited (axios dependency missing)');
+  }
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
