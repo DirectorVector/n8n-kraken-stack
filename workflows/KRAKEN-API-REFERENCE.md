@@ -30,6 +30,12 @@ GET http://kraken:3240/balance
 GET http://kraken:3240/trade-balance?asset=ZUSD
 GET http://kraken:3240/open-orders
 GET http://kraken:3240/closed-orders?trades=true
+
+# Trading Operations (POST)
+POST http://kraken:3240/add-order
+POST http://kraken:3240/cancel-order
+POST http://kraken:3240/cancel-all
+POST http://kraken:3240/cancel-all-orders-after
 ```
 
 ### Testing
@@ -65,6 +71,64 @@ GET http://kraken:3240/test?format=summary     # Summary format
 }
 ```
 
+### Add Order Example (Validation Mode)
+```json
+{
+  "method": "POST",
+  "url": "http://kraken:3240/add-order",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "pair": "XXBTZUSD",
+    "type": "buy",
+    "ordertype": "limit",
+    "volume": "0.001",
+    "price": "30000",
+    "validate": true
+  }
+}
+```
+
+### Cancel Order Example
+```json
+{
+  "method": "POST",
+  "url": "http://kraken:3240/cancel-order",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "txid": "OQCLML-BW3P3-BUCMWZ"
+  }
+}
+```
+
+### Cancel All Orders Example
+```json
+{
+  "method": "POST",
+  "url": "http://kraken:3240/cancel-all",
+  "headers": {
+    "Content-Type": "application/json"
+  }
+}
+```
+
+### Cancel All Orders After Timer Example
+```json
+{
+  "method": "POST",
+  "url": "http://kraken:3240/cancel-all-orders-after",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "timeout": 60
+  }
+}
+```
+
 ## 🔍 Response Format
 
 All endpoints return JSON with this structure:
@@ -77,7 +141,37 @@ All endpoints return JSON with this structure:
 }
 ```
 
-## 🚨 Error Handling
+## � Trading Endpoint Parameters
+
+### POST /add-order
+**Required:**
+- `pair`: Asset pair (e.g., "XXBTZUSD")
+- `type`: Order type ("buy" or "sell")
+- `ordertype`: Order type ("market", "limit", "stop-loss", etc.)
+- `volume`: Order volume in base asset
+
+**Optional:**
+- `price`: Price for limit orders
+- `price2`: Secondary price for stop orders
+- `leverage`: Leverage ratio
+- `oflags`: Order flags (viqc, fcib, fciq, nompp, post)
+- `starttm`: Scheduled start time
+- `expiretm`: Expiration time
+- `userref`: User reference ID
+- `validate`: Validate inputs only (true/false)
+
+### POST /cancel-order
+**Required:**
+- `txid`: Transaction ID of the order to cancel
+
+### POST /cancel-all
+No parameters required - cancels all open orders.
+
+### POST /cancel-all-orders-after
+**Required:**
+- `timeout`: Timeout in seconds (0-86400, 0 disables timer)
+
+## �🚨 Error Handling
 
 Failed requests return:
 ```json

@@ -97,6 +97,68 @@ class KrakenAPITester {
     }
   }
 
+  async testValidationEndpoint(method, endpoint, data = null, description = '') {
+    try {
+      this.log(`Testing: ${description || endpoint} (expecting 400)`, 'info');
+      this.log(`${method.toUpperCase()} ${this.baseUrl}${endpoint}`, 'debug');
+
+      const config = {
+        method: method.toLowerCase(),
+        url: `${this.baseUrl}${endpoint}`,
+        timeout: 10000
+      };
+
+      if (data && method.toLowerCase() === 'post') {
+        config.data = data;
+        config.headers = { 'Content-Type': 'application/json' };
+        this.log(`Request body: ${JSON.stringify(data)}`, 'debug');
+      }
+
+      const response = await axios(config);
+      
+      // If we get here, the request succeeded when it should have failed
+      this.log(`❌ VALIDATION FAILED: Expected 400 but got ${response.status}`, 'error');
+      this.failedTests++;
+      this.results.push({ 
+        endpoint, 
+        method, 
+        status: 'FAIL', 
+        httpStatus: response.status,
+        description,
+        error: 'Expected 400 validation error but request succeeded'
+      });
+      return false;
+    } catch (error) {
+      if (error.response && error.response.status === 400) {
+        this.log(`✅ VALIDATION PASSED: Correctly returned 400`, 'success');
+        this.log(`Validation error: ${error.response.data.message || error.response.data.error}`, 'info');
+        this.passedTests++;
+        this.results.push({ 
+          endpoint, 
+          method, 
+          status: 'PASS', 
+          httpStatus: 400,
+          description,
+          validationError: error.response.data
+        });
+        return true;
+      } else {
+        this.log(`❌ VALIDATION FAILED: Expected 400 but got ${error.response?.status || 'network error'}`, 'error');
+        this.log(`Error: ${error.message}`, 'error');
+        this.results.push({ 
+          endpoint, 
+          method, 
+          status: 'FAIL', 
+          httpStatus: error.response?.status,
+          error: error.response?.data || error.message,
+          description
+        });
+        this.failedTests++;
+        return false;
+      }
+    }
+  }
+
   async runAllTests() {
     this.log('🧪 Kraken API Endpoint Testing Suite Started', 'info');
     this.log(`Target: ${this.baseUrl}`, 'info');
@@ -147,40 +209,7 @@ class KrakenAPITester {
     this.log('=== PARAMETER VALIDATION TESTS ===', 'info');
     
     // Test missing required parameters (should fail with 400)
-    try {
-      await axios.get(`${this.baseUrl}/api/ticker`, { timeout: 5000 });
-      this.log('❌ VALIDATION FAILED: ticker without pair should return 400', 'error');
-      this.failedTests++;
-      this.results.push({
-        endpoint: '/api/ticker',
-        method: 'GET',
-        status: 'FAIL',
-        description: 'Ticker without pair validation',
-        error: 'Should have returned 400 but succeeded'
-      });
-    } catch (error) {
-      if (error.response && error.response.status === 400) {
-        this.log('✅ VALIDATION PASSED: ticker without pair correctly returns 400', 'success');
-        this.passedTests++;
-        this.results.push({
-          endpoint: '/api/ticker',
-          method: 'GET',
-          status: 'PASS',
-          httpStatus: 400,
-          description: 'Ticker without pair validation'
-        });
-      } else {
-        this.log('❌ VALIDATION FAILED: unexpected error for ticker without pair', 'error');
-        this.failedTests++;
-        this.results.push({
-          endpoint: '/api/ticker',
-          method: 'GET',
-          status: 'FAIL',
-          description: 'Ticker without pair validation',
-          error: error.message
-        });
-      }
-    }
+    await this.testValidationEndpoint('GET', '/api/ticker', null, 'Ticker without pair (should fail)');
 
     // Private Endpoint Tests (Will show authentication errors - this is expected)
     this.log('=== PRIVATE ENDPOINT TESTS (Expected Auth Errors) ===', 'info');
@@ -201,14 +230,14 @@ class KrakenAPITester {
     };
     await this.testEndpoint('POST', '/api/add-order', validOrderData, 'Add Order (validation only)');
 
-    // Test missing parameters for add-order
-    await this.testEndpoint('POST', '/api/add-order', {}, 'Add Order (missing params - should fail)');
+    // Test missing parameters for add-order (expect 400)
+    await this.testValidationEndpoint('POST', '/api/add-order', {}, 'Add Order (missing params - should fail)');
 
-    // Test cancel-order with missing txid
-    await this.testEndpoint('POST', '/api/cancel-order', {}, 'Cancel Order (missing txid - should fail)');
+    // Test cancel-order with missing txid (expect 400)
+    await this.testValidationEndpoint('POST', '/api/cancel-order', {}, 'Cancel Order (missing txid - should fail)');
 
-    // Test cancel-all-orders-after with invalid timeout
-    await this.testEndpoint('POST', '/api/cancel-all-orders-after', { timeout: 99999 }, 'Cancel All After (invalid timeout - should fail)');
+    // Test cancel-all-orders-after with invalid timeout (expect 400)
+    await this.testValidationEndpoint('POST', '/api/cancel-all-orders-after', { timeout: 99999 }, 'Cancel All After (invalid timeout - should fail)');
 
     // Test cancel-all-orders-after with valid timeout (0 = disable)
     await this.testEndpoint('POST', '/api/cancel-all-orders-after', { timeout: 0 }, 'Cancel All After (disable timer)');
@@ -243,7 +272,7 @@ class KrakenAPITester {
         failed: this.failedTests,
         total: total,
         successRate: parseFloat(successRate),
-        status: this.failedTests <= 5 ? 'healthy' : 'issues_detected' // Expected ~5 failures due to permissions
+        status: this.failedTests <= 2 ? 'healthy' : 'issues_detected' // Expected ~2 failures due to auth permissions
       },
       results: this.results,
       logs: this.logs,
