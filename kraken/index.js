@@ -286,6 +286,189 @@ app.get('/api/balance', async (req, res) => {
   }
 });
 
+// =============================================================================
+// TRADING ENDPOINTS (Private - Authentication Required)
+// =============================================================================
+
+// Add a new order
+app.post('/api/add-order', async (req, res) => {
+  try {
+    // Check if API credentials are configured
+    if (!process.env.KRAKEN_API_KEY || !process.env.KRAKEN_API_SECRET) {
+      return res.status(400).json({ 
+        error: 'Kraken API credentials not configured',
+        message: 'Please set KRAKEN_API_KEY and KRAKEN_API_SECRET environment variables'
+      });
+    }
+
+    const { pair, type, ordertype, volume, price, price2, leverage, oflags, starttm, expiretm, userref, validate } = req.body;
+
+    // Validate required parameters
+    if (!pair || !type || !ordertype || !volume) {
+      return res.status(400).json({
+        error: 'Missing required parameters',
+        message: 'pair, type, ordertype, and volume are required',
+        required: {
+          pair: 'Asset pair (e.g., XXBTZUSD)',
+          type: 'Order type (buy or sell)',
+          ordertype: 'Order type (market, limit, stop-loss, etc.)',
+          volume: 'Order volume in base asset'
+        },
+        optional: {
+          price: 'Price for limit orders',
+          price2: 'Secondary price for stop orders',
+          leverage: 'Leverage ratio',
+          oflags: 'Order flags (viqc, fcib, fciq, nompp, post)',
+          starttm: 'Scheduled start time',
+          expiretm: 'Expiration time',
+          userref: 'User reference id',
+          validate: 'Validate inputs only (true/false)'
+        }
+      });
+    }
+
+    // Prepare order parameters
+    const orderParams = {
+      pair,
+      type,
+      ordertype,
+      volume
+    };
+
+    // Add optional parameters if provided
+    if (price !== undefined) orderParams.price = price;
+    if (price2 !== undefined) orderParams.price2 = price2;
+    if (leverage !== undefined) orderParams.leverage = leverage;
+    if (oflags !== undefined) orderParams.oflags = oflags;
+    if (starttm !== undefined) orderParams.starttm = starttm;
+    if (expiretm !== undefined) orderParams.expiretm = expiretm;
+    if (userref !== undefined) orderParams.userref = userref;
+    if (validate !== undefined) orderParams.validate = validate;
+
+    const result = await kraken.addOrder(orderParams);
+    res.json(result);
+  } catch (error) {
+    console.error('Error adding order:', error);
+    res.status(500).json({ 
+      error: 'Failed to add order', 
+      details: error.message,
+      hint: 'Make sure your API key has "Create & Modify Orders" permission'
+    });
+  }
+});
+
+// Cancel a specific order
+app.post('/api/cancel-order', async (req, res) => {
+  try {
+    // Check if API credentials are configured
+    if (!process.env.KRAKEN_API_KEY || !process.env.KRAKEN_API_SECRET) {
+      return res.status(400).json({ 
+        error: 'Kraken API credentials not configured',
+        message: 'Please set KRAKEN_API_KEY and KRAKEN_API_SECRET environment variables'
+      });
+    }
+
+    const { txid } = req.body;
+
+    // Validate required parameters
+    if (!txid) {
+      return res.status(400).json({
+        error: 'Missing required parameter',
+        message: 'txid is required',
+        required: {
+          txid: 'Transaction ID of the order to cancel'
+        },
+        example: {
+          txid: 'OQCLML-BW3P3-BUCMWZ'
+        }
+      });
+    }
+
+    const result = await kraken.cancelOrder({ txid });
+    res.json(result);
+  } catch (error) {
+    console.error('Error canceling order:', error);
+    res.status(500).json({ 
+      error: 'Failed to cancel order', 
+      details: error.message,
+      hint: 'Make sure your API key has "Cancel Orders" permission and the order ID is valid'
+    });
+  }
+});
+
+// Cancel all open orders
+app.post('/api/cancel-all', async (req, res) => {
+  try {
+    // Check if API credentials are configured
+    if (!process.env.KRAKEN_API_KEY || !process.env.KRAKEN_API_SECRET) {
+      return res.status(400).json({ 
+        error: 'Kraken API credentials not configured',
+        message: 'Please set KRAKEN_API_KEY and KRAKEN_API_SECRET environment variables'
+      });
+    }
+
+    const result = await kraken.cancelAll();
+    res.json(result);
+  } catch (error) {
+    console.error('Error canceling all orders:', error);
+    res.status(500).json({ 
+      error: 'Failed to cancel all orders', 
+      details: error.message,
+      hint: 'Make sure your API key has "Cancel Orders" permission'
+    });
+  }
+});
+
+// Cancel all orders after specified timeout
+app.post('/api/cancel-all-orders-after', async (req, res) => {
+  try {
+    // Check if API credentials are configured
+    if (!process.env.KRAKEN_API_KEY || !process.env.KRAKEN_API_SECRET) {
+      return res.status(400).json({ 
+        error: 'Kraken API credentials not configured',
+        message: 'Please set KRAKEN_API_KEY and KRAKEN_API_SECRET environment variables'
+      });
+    }
+
+    const { timeout } = req.body;
+
+    // Validate required parameters
+    if (timeout === undefined || timeout === null) {
+      return res.status(400).json({
+        error: 'Missing required parameter',
+        message: 'timeout is required',
+        required: {
+          timeout: 'Timeout in seconds (0 to disable, max 86400)'
+        },
+        examples: {
+          disable: { timeout: 0 },
+          oneHour: { timeout: 3600 },
+          oneDay: { timeout: 86400 }
+        }
+      });
+    }
+
+    // Validate timeout range
+    if (timeout < 0 || timeout > 86400) {
+      return res.status(400).json({
+        error: 'Invalid timeout value',
+        message: 'Timeout must be between 0 and 86400 seconds (24 hours)',
+        provided: timeout
+      });
+    }
+
+    const result = await kraken.cancelAllOrdersAfter({ timeout });
+    res.json(result);
+  } catch (error) {
+    console.error('Error setting cancel-all-orders-after:', error);
+    res.status(500).json({ 
+      error: 'Failed to set cancel-all-orders-after', 
+      details: error.message,
+      hint: 'Make sure your API key has "Cancel Orders" permission'
+    });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
@@ -308,9 +491,8 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Kraken API service running on port ${port}`);
   console.log(`📋 Health check: http://localhost:${port}/health`);
   console.log(`⏰ Server time: http://localhost:${port}/api/time`);
-  console.log(`💰 Account balance: http://localhost:${port}/api/balance`);
   console.log('');
-  console.log('📊 Market Data Endpoints:');
+  console.log('📊 Market Data Endpoints (GET):');
   console.log(`   System Status: http://localhost:${port}/api/system-status`);
   console.log(`   Assets: http://localhost:${port}/api/assets`);
   console.log(`   Asset Pairs: http://localhost:${port}/api/asset-pairs`);
@@ -319,5 +501,14 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`   Order Book: http://localhost:${port}/api/depth?pair=XXBTZUSD`);
   console.log(`   Recent Trades: http://localhost:${port}/api/trades?pair=XXBTZUSD`);
   console.log(`   Spread Data: http://localhost:${port}/api/spread?pair=XXBTZUSD`);
+  console.log('');
+  console.log('🔐 Private Endpoints (Authentication Required):');
+  console.log(`   💰 Account Balance: GET http://localhost:${port}/api/balance`);
+  console.log('');
+  console.log('📈 Trading Endpoints (POST):');
+  console.log(`   ➕ Add Order: POST http://localhost:${port}/api/add-order`);
+  console.log(`   ❌ Cancel Order: POST http://localhost:${port}/api/cancel-order`);
+  console.log(`   🗑️  Cancel All: POST http://localhost:${port}/api/cancel-all`);
+  console.log(`   ⏱️  Cancel All After: POST http://localhost:${port}/api/cancel-all-orders-after`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });

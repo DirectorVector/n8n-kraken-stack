@@ -92,6 +92,8 @@ docker-compose -f docker-compose.yml up -d
    - **Query Funds**: For balance endpoints
    - **Query Open Orders & Trades**: For trading data
    - **Query Closed Orders & Trades**: For historical data
+   - **Create & Modify Orders**: For placing new orders
+   - **Cancel Orders**: For canceling orders
 
 ### API Endpoints
 
@@ -117,6 +119,14 @@ docker-compose -f docker-compose.yml up -d
 | Endpoint | Method | Description | Auth Required |
 |----------|--------|-------------|---------------|
 | `/api/balance` | GET | Account balance | Yes |
+
+#### Trading (Private)
+| Endpoint | Method | Description | Required Params | Optional Params |
+|----------|--------|-------------|-----------------|-----------------|
+| `/api/add-order` | POST | Place a new order | `pair`, `type`, `ordertype`, `volume` | `price`, `price2`, `leverage`, `oflags`, `starttm`, `expiretm`, `userref`, `validate` |
+| `/api/cancel-order` | POST | Cancel specific order | `txid` | None |
+| `/api/cancel-all` | POST | Cancel all open orders | None | None |
+| `/api/cancel-all-orders-after` | POST | Cancel all orders after timeout | `timeout` | None |
 
 ### Example API Calls
 
@@ -162,6 +172,67 @@ curl http://localhost:3240/api/time
 curl http://localhost:3240/api/balance
 ```
 
+#### Trading Operations
+```bash
+# Place a market buy order for 0.001 BTC
+curl -X POST http://localhost:3240/api/add-order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pair": "XXBTZUSD",
+    "type": "buy",
+    "ordertype": "market",
+    "volume": "0.001"
+  }'
+
+# Place a limit sell order for 0.001 BTC at $120,000
+curl -X POST http://localhost:3240/api/add-order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pair": "XXBTZUSD",
+    "type": "sell",
+    "ordertype": "limit",
+    "volume": "0.001",
+    "price": "120000"
+  }'
+
+# Validate order without placing it
+curl -X POST http://localhost:3240/api/add-order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pair": "XXBTZUSD",
+    "type": "buy",
+    "ordertype": "limit",
+    "volume": "0.001",
+    "price": "50000",
+    "validate": true
+  }'
+
+# Cancel a specific order
+curl -X POST http://localhost:3240/api/cancel-order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "txid": "OQCLML-BW3P3-BUCMWZ"
+  }'
+
+# Cancel all open orders
+curl -X POST http://localhost:3240/api/cancel-all \
+  -H "Content-Type: application/json"
+
+# Set cancel-all timer for 1 hour (3600 seconds)
+curl -X POST http://localhost:3240/api/cancel-all-orders-after \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timeout": 3600
+  }'
+
+# Disable cancel-all timer
+curl -X POST http://localhost:3240/api/cancel-all-orders-after \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timeout": 0
+  }'
+```
+
 #### Parameter Details
 
 **Asset Pairs**: Use Kraken's format (e.g., `XXBTZUSD`, `XETHZUSD`, `ADAUSD`)
@@ -169,6 +240,25 @@ curl http://localhost:3240/api/balance
 **OHLC Intervals**: 1, 5, 15, 30, 60, 240, 1440, 10080, 21600 (minutes)
 
 **Timestamps**: Unix timestamp format for `since` parameters
+
+**Order Types**:
+- `market`: Market order (executed immediately at current price)
+- `limit`: Limit order (executed at specified price or better)
+- `stop-loss`: Stop-loss order
+- `take-profit`: Take-profit order
+- `stop-loss-limit`: Stop-loss with limit price
+- `take-profit-limit`: Take-profit with limit price
+
+**Order Flags** (`oflags`):
+- `viqc`: Volume in quote currency
+- `fcib`: Fill or kill immediately or cancel (book orders only)
+- `fciq`: Fill or kill immediately or cancel (quote orders only)
+- `nompp`: No market price protection
+- `post`: Post only (limit orders only)
+
+**Leverage**: Available ratios depend on asset pair (e.g., 2, 3, 4, 5)
+
+**Timeout**: For cancel-all-orders-after (0 to 86400 seconds, 0 disables)
 
 ## 🏗 Development
 
@@ -222,6 +312,36 @@ The Kraken service uses nodemon for automatic restart on code changes:
 - Source code is mounted as a volume
 - Changes to `kraken/index.js` trigger automatic restart
 - Check logs to see restart notifications
+
+### Testing
+
+The project includes a comprehensive test suite for validating all API endpoints safely:
+
+```bash
+# Run the full test suite
+cd kraken && npm test
+
+# Run tests with auto-restart on changes
+cd kraken && npm run test:watch
+
+# Manual execution
+cd kraken && node test-endpoints.js
+```
+
+**Test Coverage**:
+- ✅ All market data endpoints (safe, read-only)
+- ✅ Parameter validation tests
+- ✅ Authentication flow validation
+- ✅ Trading endpoint validation (using `validate=true` flag)
+- ✅ Error handling and edge cases
+
+**Safety Features**:
+- No real trading operations (all trading tests use validation mode)
+- Read-only market data operations only
+- Permission and authentication testing without executing sensitive operations
+- Built-in safeguards prevent accidental order placement
+
+For detailed testing documentation, see [TESTING.md](kraken/TESTING.md).
 
 ## 🔒 Security Considerations
 
