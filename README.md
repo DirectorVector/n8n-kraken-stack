@@ -39,7 +39,8 @@ This stack includes built-in support for version controlling your n8n workflows:
 
 **Access URLs:**
 - **n8n Interface**: http://localhost:8080
-- **Kraken API**: http://localhost:8080/kraken/*
+- **Kraken API (External)**: http://localhost:8080/kraken/*
+- **Kraken API (Internal/n8n)**: http://kraken:3240/*
 - **Test Dashboard**: http://localhost:8080/kraken/test
 
 ## 🛠 Prerequisites

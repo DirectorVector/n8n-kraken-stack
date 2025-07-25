@@ -101,9 +101,27 @@ The Docker setup includes:
 
 ## 🌐 Integration with Kraken API
 
-Your workflows can now use the Kraken API service:
-- **Kraken endpoints**: http://localhost:8080/kraken/*
-- **Test dashboard**: http://localhost:8080/kraken/test
-- **API documentation**: Available in kraken service
+### **For n8n Workflows (Internal Docker Network)**
+Use direct container communication for better performance:
+```
+http://kraken:3240/health
+http://kraken:3240/server-time
+http://kraken:3240/assets
+http://kraken:3240/ticker?pair=XBTUSD
+http://kraken:3240/test
+```
+
+### **For External Access (Browser/Testing)**
+Use the Caddy proxy for external access:
+```
+https://n8n.blt.io/kraken/*        # Production with SSL
+http://localhost:8080/kraken/*     # Development
+```
+
+### **Why Use Internal Endpoints in Workflows?**
+- ✅ **Faster**: No proxy overhead
+- ✅ **More reliable**: Direct container communication
+- ✅ **Secure**: Internal Docker network isolation
+- ✅ **Simpler**: No SSL configuration needed internally
 
 This enables automated trading, market data analysis, and custom cryptocurrency workflows!
