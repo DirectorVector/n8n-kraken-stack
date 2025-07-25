@@ -11,8 +11,6 @@ services:
       - /usr/src/app/node_modules  # Preserve node_modules
     environment:
       - NODE_ENV=development
-      - KRAKEN_API_KEY=koDinYxIVeYMnUWcOGm9ZqNx+C3RfeiKjQ+dObjxr3JIcM8D4WqFsOhr
-      - KRAKEN_API_SECRET=zj+SHIvnwQwQG5NMbi2rx7p0yUbGwowmGbz+WG0bOq1pz75kOppY/2JEXsx9z0nxm/QPp8YSABhuhmSZhLrzJA==
     # Remove healthcheck for faster development startup
     healthcheck:
       disable: true
