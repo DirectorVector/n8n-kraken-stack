@@ -1,5 +1,38 @@
-n8n.<domain>.<suffix> {
+n8n.blt.io {
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME sniffing
+        X-Content-Type-Options nosniff
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Referrer policy
+        Referrer-Policy strict-origin-when-cross-origin
+        # Remove server info
+        -Server
+    }
+
+    # Rate limiting
+    rate_limit {
+        zone static_ip_10rps_5m {
+            key {remote_host}
+            window 5m
+            events 300
+        }
+    }
+
+    # Health check endpoint for Caddy
+    respond /health "OK" 200
+
     reverse_proxy n8n:5678 {
-      flush_interval -1
+        flush_interval -1
+        
+        # Health check for upstream
+        health_uri /healthz
+        health_interval 30s
+        health_timeout 10s
     }
 }

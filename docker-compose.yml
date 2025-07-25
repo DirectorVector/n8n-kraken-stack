@@ -1,22 +1,44 @@
-version: "3.7"
+# Logging configuration
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   caddy:
     image: caddy:latest
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - caddy_data:/data
-      - ${DATA_FOLDER}/caddy_config:/config
-      - ${DATA_FOLDER}/caddy_config/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy_config/Caddyfile:/etc/caddy/Caddyfile
+  # caddy:
+  #   image: caddy:2
+  #   restart: always
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     # your Win‑ACME certs:
+  #     - /mnt/g/SSL/PEM:/certs:ro
+  #     # Caddyfile:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
 
   n8n:
     image: docker.n8n.io/n8nio/n8n
     restart: always
+    logging: *default-logging
     ports:
       - 5678:5678
+    env_file:
+      - .env
+      - .env.local  # Override with local secrets (ignored by git)
     environment:
       - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
       - N8N_PORT=5678
@@ -24,12 +46,38 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=cheerio,moment,axios,crypto,querystring
+      - N8N_RUNNERS_ENABLED=true
     volumes:
       - n8n_data:/home/node/.n8n
       - ${DATA_FOLDER}/local_files:/files
-      
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5678/healthz", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  kraken:
+    build: ./kraken
+    container_name: kraken
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      - .env
+      - .env.local  # Override with local secrets (ignored by git)
+    environment:
+      - KRAKEN_API_KEY=${KRAKEN_API_KEY}
+      - KRAKEN_API_SECRET=${KRAKEN_API_SECRET}
+      - NODE_ENV=production
+    ports:
+      - "3240:3240"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3240/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 volumes:
   caddy_data:
-    external: true
   n8n_data:
-    external: true

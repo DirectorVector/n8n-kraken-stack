@@ -1,0 +1,29 @@
+# Development overrides for faster development workflow
+
+services:
+  kraken:
+    build:
+      context: ./kraken
+      target: development  # Use development stage from Dockerfile
+    volumes:
+      # Mount source code for development
+      - ./kraken:/usr/src/app
+      - /usr/src/app/node_modules  # Preserve node_modules
+    environment:
+      - NODE_ENV=development
+      - KRAKEN_API_KEY=koDinYxIVeYMnUWcOGm9ZqNx+C3RfeiKjQ+dObjxr3JIcM8D4WqFsOhr
+      - KRAKEN_API_SECRET=zj+SHIvnwQwQG5NMbi2rx7p0yUbGwowmGbz+WG0bOq1pz75kOppY/2JEXsx9z0nxm/QPp8YSABhuhmSZhLrzJA==
+    # Remove healthcheck for faster development startup
+    healthcheck:
+      disable: true
+    
+  caddy:
+    # Development Caddyfile with more verbose logging
+    volumes:
+      - caddy_data:/data
+      - ./caddy_config/Caddyfile.dev:/etc/caddy/Caddyfile
+    
+  n8n:
+    environment:
+      - N8N_LOG_LEVEL=debug
+      - N8N_LOG_OUTPUT=console
